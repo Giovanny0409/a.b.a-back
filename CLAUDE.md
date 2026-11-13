@@ -12,7 +12,7 @@
 - API para el punto de venta de **Alimentos Balanceados Alonso** (forrajería): productos, proveedores, compras
   (bultos y productos varios), ventas (bulto, kilo, pieza), inventario y gastos.
 - Este repositorio (`backend-aba`, remoto `a.b.a-back`) es el **backend**. El frontend Angular vive por separado en
-  `C:\Users\carte\OneDrive\Desktop\alimentos balanceados alonso` (remoto `a.b.a-front`) y corre en
+  el repo hermano `../a.b.a-front` (remoto `a.b.a-front`) y corre en
   `http://localhost:4200`, consumiendo esta API en `http://localhost:5028/api`. Son **repos de Git independientes**.
 - Un cambio de contrato aquí (forma del JSON, nuevo endpoint, campo removido) casi siempre requiere el commit
   correspondiente en `a.b.a-front` — valida siempre contra `core/pos.models.ts` y `core/pos-api.service.ts` del
