@@ -4,6 +4,10 @@
 > Claude debe leerlo y aplicarlo antes de cualquier cambio.
 > Es la contraparte de `CLAUDE.md` en el repositorio del frontend (`a.b.a-front`) — mismo equipo,
 > mismas convenciones de Git; este archivo se enfoca en lo específico del backend.
+>
+> **Antes de empezar, `../a.b.a-front/docs/PENDIENTES.md`.** Los pendientes, decisiones y deuda de los dos
+> repos viven ahí, igual que la planeación de OpenSpec. Lo que aparezca y no sea del cambio en curso se
+> registra ahí (columna Repo = back) y no se corrige en ese cambio.
 
 ---
 
@@ -44,8 +48,8 @@
 - `<tipo>`: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `perf`, `style`.
 - Ejemplos: `dev-feat-alerta-stock-bajo`, `dev-fix-costo-por-pieza`.
 
-**IMPORTANTE — Comportamiento de Claude:**
-- **NO crear ramas automáticamente.** Solo generar en el chat el nombre para copiar/pegar.
+**Comportamiento de Claude:** crea la rama él mismo desde `origin/dev`, con el mismo nombre que la rama del
+front cuando el cambio toca los dos repos.
 
 ### Mensajes de commit
 
@@ -53,14 +57,16 @@
 - `scope`: área afectada (ej. `purchases`, `sales`, `inventory`, `expenses`, `suppliers`).
 - Ejemplo: `feat(expenses): add expenses controller backed by ExpenseEntity`
 
-**IMPORTANTE — Comportamiento de Claude:**
-- **NO hacer commits automáticamente.** Solo generar el mensaje en el chat.
+**Comportamiento de Claude:** hace los commits él mismo cuando una unidad de trabajo queda completa y
+`dotnet build` pasa. Cada commit hace una sola cosa.
 
 ### Pull Request
 
 - Mismo formato que en `a.b.a-front`: título igual al commit, descripción en español con `## Resumen`,
   `## Cambios`, `## Pruebas`, `## Nota / deuda` (opcional).
-- **NO crear el PR automáticamente** salvo pedido explícito.
+- **Pregunta antes** de hacer push y de abrir el PR con `gh pr create` hacia `dev`, igual que en el front. Nunca
+  fusiona un PR.
+- La memoria del agente es solo para hechos de la máquina; lo del proyecto va al repositorio.
 
 ## Principios de desarrollo
 
