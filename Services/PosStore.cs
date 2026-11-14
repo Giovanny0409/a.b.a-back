@@ -210,6 +210,9 @@ public sealed class PosStore(AppDbContext db)
                 ?? throw new InvalidOperationException("No hay inventario suficiente para esta venta.");
 
             ApplySaleToInventory(line.ProductId, line.Unit, line.Quantity);
+            // Las búsquedas de lote filtran en la base: la siguiente línea debe ver este descuento.
+            // Si una línea posterior no alcanza, la transacción se revierte completa.
+            db.SaveChanges();
 
             saleLines.Add(new SaleLineEntity
             {

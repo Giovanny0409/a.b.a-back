@@ -205,18 +205,65 @@ public sealed class PosStoreSaleTests : IDisposable
         Assert.Equal(BagStatus.Sealed, Assert.Single(db.BagLots).Status);
     }
 
-    [Fact(Skip = "P-11: dos líneas del mismo producto venden el mismo bulto dos veces")]
+    [Fact]
     public void Dos_lineas_del_mismo_producto_no_venden_mas_de_lo_que_hay()
     {
         var bagId = BuyBags();
 
-        Assert.Throws<InvalidOperationException>(() => NewStore().RegisterSaleBatch(Sale(
+        var error = Assert.Throws<InvalidOperationException>(() => NewStore().RegisterSaleBatch(Sale(
             Line(bagId, SaleUnit.Bag, 1),
             Line(bagId, SaleUnit.Bag, 1))));
 
+        Assert.Equal("No hay inventario suficiente para esta venta.", error.Message);
         using var db = database.CreateContext();
         Assert.Empty(db.Sales);
         Assert.Equal(BagStatus.Sealed, Assert.Single(db.BagLots).Status);
+    }
+
+    [Fact]
+    public void Dos_lineas_de_kilos_no_venden_mas_kilos_de_los_que_tiene_el_bulto()
+    {
+        var bagId = BuyBags();
+
+        Assert.Throws<InvalidOperationException>(() => NewStore().RegisterSaleBatch(Sale(
+            Line(bagId, SaleUnit.Kg, 30),
+            Line(bagId, SaleUnit.Kg, 30))));
+
+        using var db = database.CreateContext();
+        Assert.Empty(db.Sales);
+        var lot = Assert.Single(db.BagLots);
+        Assert.Equal(BagStatus.Sealed, lot.Status);
+        Assert.Equal(40m, lot.RemainingKg);
+    }
+
+    [Fact]
+    public void Dos_lineas_de_piezas_no_venden_mas_piezas_de_las_que_hay()
+    {
+        var pieceId = BuyPieces();
+
+        Assert.Throws<InvalidOperationException>(() => NewStore().RegisterSaleBatch(Sale(
+            Line(pieceId, SaleUnit.Piece, 6),
+            Line(pieceId, SaleUnit.Piece, 6))));
+
+        using var db = database.CreateContext();
+        Assert.Empty(db.Sales);
+        Assert.Equal(10m, Assert.Single(db.UnitLots).RemainingQuantity);
+    }
+
+    [Fact]
+    public void Dos_lineas_del_mismo_producto_que_si_alcanzan_venden_un_bulto_cada_una()
+    {
+        var bagId = BuyBags(bags: 2);
+
+        var sale = NewStore().RegisterSaleBatch(Sale(
+            Line(bagId, SaleUnit.Bag, 1),
+            Line(bagId, SaleUnit.Bag, 1)));
+
+        Assert.Equal(2, sale.Lines.Count);
+        Assert.Equal(800m, sale.Total);
+        using var db = database.CreateContext();
+        Assert.All(db.BagLots, lot => Assert.Equal(BagStatus.Sold, lot.Status));
+        Assert.Equal(0, Assert.Single(NewStore().GetInventory()).SealedBags);
     }
 
     [Fact]

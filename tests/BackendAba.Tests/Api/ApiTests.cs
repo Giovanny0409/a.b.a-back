@@ -11,8 +11,11 @@ namespace BackendAba.Tests.Api;
 /// </summary>
 public sealed class ApiTests : IDisposable
 {
-    // Producto de la siembra con dos bultos (PosStore.Seed).
+    // Productos de la siembra (PosStore.Seed): Maiz quebrado con dos bultos de precios distintos y
+    // Salvado de trigo con un solo bulto de 330. Con dos bultos, cuál se vende es arbitrario (P-13), así
+    // que las ventas por bulto usan el de un solo bulto.
     private const string SeededProductId = "10000000-0000-0000-0000-000000000001";
+    private const string SingleBagProductId = "10000000-0000-0000-0000-000000000003";
 
     private readonly ApiFactory factory = new();
     private readonly HttpClient client;
@@ -139,17 +142,17 @@ public sealed class ApiTests : IDisposable
         {
             customer = "Juan",
             sellerId = "0409",
-            lines = new[] { new { productId = SeededProductId, unit = "bag", quantity = 1 } }
+            lines = new[] { new { productId = SingleBagProductId, unit = "bag", quantity = 1 } }
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var sale = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(390m, sale.GetProperty("total").GetDecimal());
+        Assert.Equal(330m, sale.GetProperty("total").GetDecimal());
         Assert.Equal("bag", sale.GetProperty("lines")[0].GetProperty("unit").GetString());
 
         var item = (await GetJson("/api/inventory")).EnumerateArray()
-            .Single(entry => entry.GetProperty("product").GetProperty("id").GetString() == SeededProductId);
-        Assert.Equal(1, item.GetProperty("sealedBags").GetInt32());
+            .Single(entry => entry.GetProperty("product").GetProperty("id").GetString() == SingleBagProductId);
+        Assert.Equal(0, item.GetProperty("sealedBags").GetInt32());
     }
 
     [Fact]
@@ -166,6 +169,29 @@ public sealed class ApiTests : IDisposable
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("No hay inventario suficiente para esta venta.", body.GetProperty("message").GetString());
         Assert.Equal(0, (await GetJson("/api/sales")).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Dos_lineas_del_unico_bulto_responden_400_y_no_se_registra_la_venta()
+    {
+        var response = await client.PostAsJsonAsync("/api/sales/batch", new
+        {
+            customer = "Juan",
+            sellerId = "0409",
+            lines = new[]
+            {
+                new { productId = SingleBagProductId, unit = "bag", quantity = 1 },
+                new { productId = SingleBagProductId, unit = "bag", quantity = 1 }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("No hay inventario suficiente para esta venta.", body.GetProperty("message").GetString());
+        Assert.Equal(0, (await GetJson("/api/sales")).GetArrayLength());
+        var item = (await GetJson("/api/inventory")).EnumerateArray()
+            .Single(entry => entry.GetProperty("product").GetProperty("id").GetString() == SingleBagProductId);
+        Assert.Equal(1, item.GetProperty("sealedBags").GetInt32());
     }
 
     [Fact]
