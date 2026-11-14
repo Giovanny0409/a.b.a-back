@@ -94,3 +94,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Visible para WebApplicationFactory<Program> en tests/BackendAba.Tests.
+public partial class Program;
