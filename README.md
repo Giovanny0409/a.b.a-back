@@ -19,6 +19,20 @@ Swagger:
 http://localhost:5028/swagger
 ```
 
+## Pruebas
+
+```powershell
+dotnet test
+```
+
+Corre `tests/BackendAba.Tests` (xUnit, en `backend-aba.sln`) sin tocar `aba.db`:
+
+- `Services/`: `PosStore` contra SQLite en memoria con las migraciones reales: compras de bultos y piezas,
+  reutilización de producto y proveedor, inventario, cotización y venta por bulto, kilo y pieza, ventas rechazadas,
+  gastos, resumen, vendedores y siembra.
+- `Api/`: la API completa con `WebApplicationFactory<Program>` sobre su propia base en memoria: rutas, códigos de
+  respuesta y propiedades en camelCase que consume el front.
+
 ## Endpoints
 
 - `GET /api/dashboard/summary`

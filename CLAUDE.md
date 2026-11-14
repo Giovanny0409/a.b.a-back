@@ -33,6 +33,9 @@
   en `Program.cs`). No usar `EnsureCreated()` — no soporta cambios de esquema sobre una base ya existente.
 - **Serilog** para logging (consola + archivo en `logs/`, no versionado).
 - **Swashbuckle/Swagger** para explorar la API en `http://localhost:5028/swagger`.
+- **xUnit** en `tests/BackendAba.Tests` (en `backend-aba.sln`; `backend-aba.csproj` excluye `tests/**`):
+  `PosStore` contra SQLite en memoria con las migraciones reales, y la API por HTTP con
+  `WebApplicationFactory<Program>`. Nunca usan `aba.db`. Se corren con `dotnet test` desde la raíz.
 
 ## Flujo de trabajo Git
 
@@ -58,7 +61,9 @@ front cuando el cambio toca los dos repos.
 - Ejemplo: `feat(expenses): add expenses controller backed by ExpenseEntity`
 
 **Comportamiento de Claude:** hace los commits él mismo cuando una unidad de trabajo queda completa y
-`dotnet build` pasa. Cada commit hace una sola cosa.
+`dotnet test` pasa. Cada commit hace una sola cosa, y lo que cambia lleva sus pruebas en el mismo commit. Una
+prueba que falla por algo anterior al cambio se registra en `../a.b.a-front/docs/PENDIENTES.md` y se marca con
+`Skip` citando su ID, nunca se debilita.
 
 ### Pull Request
 
