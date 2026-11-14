@@ -1,0 +1,14 @@
+@BackendAba_HostAddress = http://localhost:5028
+
+GET {{BackendAba_HostAddress}}/api/dashboard/summary
+Accept: application/json
+
+###
+
+GET {{BackendAba_HostAddress}}/api/products
+Accept: application/json
+
+###
+
+GET {{BackendAba_HostAddress}}/api/inventory
+Accept: application/json
