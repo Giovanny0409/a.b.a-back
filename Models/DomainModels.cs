@@ -20,6 +20,12 @@ public enum PurchaseKind
     Unit
 }
 
+public enum ProductKind
+{
+    Bag,
+    Unit
+}
+
 public enum ExpenseArea
 {
     General,
@@ -27,7 +33,17 @@ public enum ExpenseArea
     Camioneta
 }
 
-public sealed record Product(Guid Id, string Name, string Category, int MinBags);
+public sealed record Product(Guid Id, string Name, string Category, int MinBags, ProductKind Kind);
+
+/// <summary>Lo que Compras llena solo en la línea de un producto existente: los datos de su última compra.</summary>
+public sealed record ProductPurchaseDefaults(
+    Guid ProductId,
+    string Name,
+    ProductKind Kind,
+    string Category,
+    decimal? MarkedKg,
+    decimal SalePriceBag,
+    decimal? SalePriceKg);
 
 public sealed record Supplier(Guid Id, string Name, string Phone);
 

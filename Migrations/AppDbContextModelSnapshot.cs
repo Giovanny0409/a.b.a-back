@@ -108,6 +108,9 @@ namespace BackendAba.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("MinBags")
                         .HasColumnType("INTEGER");
 

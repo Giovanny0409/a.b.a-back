@@ -66,12 +66,57 @@ public sealed class PosStoreSaleTests : IDisposable
     [InlineData(SaleUnit.Bag, 0)]
     [InlineData(SaleUnit.Kg, -1)]
     [InlineData(SaleUnit.Kg, 41)]
-    [InlineData(SaleUnit.Piece, 1)]
     public void No_cotiza_sin_cantidad_o_sin_inventario_suficiente(SaleUnit unit, decimal quantity)
     {
         var productId = BuyBags();
 
         Assert.Null(NewStore().QuoteSale(productId, unit, quantity));
+    }
+
+    [Fact]
+    public void No_cotiza_mas_piezas_de_las_que_hay()
+    {
+        var productId = BuyPieces();
+
+        Assert.Null(NewStore().QuoteSale(productId, SaleUnit.Piece, 11));
+    }
+
+    [Theory]
+    [InlineData(SaleUnit.Bag)]
+    [InlineData(SaleUnit.Kg)]
+    public void Rechaza_cotizar_un_producto_de_piezas_por_bulto_o_por_kilo(SaleUnit unit)
+    {
+        var productId = BuyPieces();
+
+        var error = Assert.Throws<InvalidOperationException>(() => NewStore().QuoteSale(productId, unit, 1));
+
+        Assert.Equal("Correa se vende por pieza.", error.Message);
+    }
+
+    [Fact]
+    public void Rechaza_cotizar_un_producto_de_bultos_por_pieza()
+    {
+        var productId = BuyBags();
+
+        var error = Assert.Throws<InvalidOperationException>(() => NewStore().QuoteSale(productId, SaleUnit.Piece, 1));
+
+        Assert.Equal("Maiz quebrado se vende por bulto o por kilo.", error.Message);
+    }
+
+    [Fact]
+    public void Rechaza_vender_con_un_modo_que_no_corresponde_y_no_registra_nada()
+    {
+        var bagId = BuyBags();
+        var pieceId = BuyPieces();
+
+        var error = Assert.Throws<InvalidOperationException>(() => NewStore().RegisterSaleBatch(Sale(
+            Line(bagId, SaleUnit.Bag, 1),
+            Line(pieceId, SaleUnit.Bag, 1))));
+
+        Assert.Equal("Correa se vende por pieza.", error.Message);
+        using var db = database.CreateContext();
+        Assert.Empty(db.Sales);
+        Assert.Equal(BagStatus.Sealed, Assert.Single(db.BagLots).Status);
     }
 
     [Fact]

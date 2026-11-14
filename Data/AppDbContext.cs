@@ -111,6 +111,7 @@ public sealed class ProductEntity
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public int MinBags { get; set; }
+    public ProductKind Kind { get; set; }
     public List<BagLotEntity> Lots { get; set; } = new();
     public List<UnitLotEntity> UnitLots { get; set; } = new();
 }

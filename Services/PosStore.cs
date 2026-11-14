@@ -44,6 +44,31 @@ public sealed class PosStore(AppDbContext db)
         return ToModel(product);
     }
 
+    /// <summary>
+    /// Por producto, los datos de su compra más reciente: el lote de bulto o de piezas con el
+    /// <c>PurchasedAt</c> mayor. Para una pieza, <c>SalePriceBag</c> lleva el precio de la pieza, como en el
+    /// formulario de Compras. Solo los productos con al menos un lote.
+    /// </summary>
+    public IReadOnlyList<ProductPurchaseDefaults> GetPurchaseDefaults()
+    {
+        return db.Products
+            .Include(product => product.Lots)
+            .Include(product => product.UnitLots)
+            .OrderBy(product => product.Name)
+            .AsEnumerable()
+            .Select(product => product.Kind == ProductKind.Unit
+                ? product.UnitLots
+                    .OrderByDescending(lot => lot.PurchasedAt)
+                    .Select(lot => new ProductPurchaseDefaults(product.Id, product.Name, product.Kind, product.Category, null, lot.SalePricePiece, null))
+                    .FirstOrDefault()
+                : product.Lots
+                    .OrderByDescending(lot => lot.PurchasedAt)
+                    .Select(lot => new ProductPurchaseDefaults(product.Id, product.Name, product.Kind, product.Category, lot.MarkedKg, lot.SalePriceBag, lot.SalePriceKg))
+                    .FirstOrDefault())
+            .OfType<ProductPurchaseDefaults>()
+            .ToList();
+    }
+
     public IReadOnlyList<BagLot> GetLots()
     {
         return db.BagLots
@@ -98,7 +123,7 @@ public sealed class PosStore(AppDbContext db)
 
         foreach (var line in request.Lines)
         {
-            var product = FindOrCreateProduct(line.ProductName, line.Category);
+            var product = FindOrCreateProduct(line.ProductName, line.Category, line.Kind);
 
             if (line.Kind == PurchaseKind.Bag)
             {
@@ -332,6 +357,17 @@ public sealed class PosStore(AppDbContext db)
             return null;
         }
 
+        // Un modo que no corresponde al tipo es un error que se explica, no falta de inventario (null).
+        if (product.Kind == ProductKind.Unit && unit != SaleUnit.Piece)
+        {
+            throw new InvalidOperationException($"{product.Name} se vende por pieza.");
+        }
+
+        if (product.Kind == ProductKind.Bag && unit == SaleUnit.Piece)
+        {
+            throw new InvalidOperationException($"{product.Name} se vende por bulto o por kilo.");
+        }
+
         if (unit == SaleUnit.Piece)
         {
             var unitLot = FindUnitLot(productId, quantity);
@@ -422,12 +458,21 @@ public sealed class PosStore(AppDbContext db)
         return supplier;
     }
 
-    private ProductEntity FindOrCreateProduct(string productName, string? category)
+    private ProductEntity FindOrCreateProduct(string productName, string? category, PurchaseKind purchaseKind)
     {
         var name = productName.Trim();
+        var kind = purchaseKind == PurchaseKind.Unit ? ProductKind.Unit : ProductKind.Bag;
         var existing = db.Products.FirstOrDefault(product => product.Name.ToLower() == name.ToLower());
         if (existing is not null)
         {
+            // El tipo se fija en la primera compra: una compra no lo cambia.
+            if (existing.Kind != kind)
+            {
+                throw new InvalidOperationException(existing.Kind == ProductKind.Unit
+                    ? $"El producto {existing.Name} es de piezas."
+                    : $"El producto {existing.Name} es de bultos.");
+            }
+
             return existing;
         }
 
@@ -436,7 +481,8 @@ public sealed class PosStore(AppDbContext db)
             Id = Guid.NewGuid(),
             Name = name,
             Category = string.IsNullOrWhiteSpace(category) ? "General" : category.Trim(),
-            MinBags = 0
+            MinBags = 0,
+            Kind = kind
         };
 
         db.Products.Add(product);
@@ -455,9 +501,9 @@ public sealed class PosStore(AppDbContext db)
             return;
         }
 
-        var maiz = new ProductEntity { Id = Guid.Parse("10000000-0000-0000-0000-000000000001"), Name = "Maiz quebrado", Category = "Grano", MinBags = 4 };
-        var engorda = new ProductEntity { Id = Guid.Parse("10000000-0000-0000-0000-000000000002"), Name = "Alimento engorda", Category = "Balanceado", MinBags = 5 };
-        var salvado = new ProductEntity { Id = Guid.Parse("10000000-0000-0000-0000-000000000003"), Name = "Salvado de trigo", Category = "Forraje", MinBags = 3 };
+        var maiz = new ProductEntity { Id = Guid.Parse("10000000-0000-0000-0000-000000000001"), Name = "Maiz quebrado", Category = "Grano", MinBags = 4, Kind = ProductKind.Bag };
+        var engorda = new ProductEntity { Id = Guid.Parse("10000000-0000-0000-0000-000000000002"), Name = "Alimento engorda", Category = "Balanceado", MinBags = 5, Kind = ProductKind.Bag };
+        var salvado = new ProductEntity { Id = Guid.Parse("10000000-0000-0000-0000-000000000003"), Name = "Salvado de trigo", Category = "Forraje", MinBags = 3, Kind = ProductKind.Bag };
         var now = DateTime.UtcNow;
 
         var supplier = new SupplierEntity { Id = Guid.Parse("20000000-0000-0000-0000-000000000001"), Name = "Carga inicial", Phone = string.Empty };
@@ -492,7 +538,7 @@ public sealed class PosStore(AppDbContext db)
 
     private static Product ToModel(ProductEntity product)
     {
-        return new Product(product.Id, product.Name, product.Category, product.MinBags);
+        return new Product(product.Id, product.Name, product.Category, product.MinBags, product.Kind);
     }
 
     private static BagLot ToModel(BagLotEntity lot)

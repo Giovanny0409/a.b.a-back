@@ -63,6 +63,44 @@ public sealed class PosStorePurchaseTests : IDisposable
     }
 
     [Fact]
+    public void La_primera_compra_fija_el_tipo_del_producto()
+    {
+        NewStore().RegisterPurchase(Purchase(BagLine(productName: "Maiz quebrado"), UnitLine(productName: "Correa")));
+
+        var kinds = NewStore().GetProducts().ToDictionary(product => product.Name, product => product.Kind);
+        Assert.Equal(ProductKind.Bag, kinds["Maiz quebrado"]);
+        Assert.Equal(ProductKind.Unit, kinds["Correa"]);
+    }
+
+    [Fact]
+    public void Rechaza_comprar_por_bultos_un_producto_de_piezas_y_no_registra_nada()
+    {
+        NewStore().RegisterPurchase(Purchase(UnitLine(productName: "Comedero")));
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            NewStore().RegisterPurchase(Purchase(BagLine(productName: "Maiz quebrado"), BagLine(productName: " comedero "))));
+
+        Assert.Equal("El producto Comedero es de piezas.", error.Message);
+        using var db = database.CreateContext();
+        Assert.Single(db.Purchases);
+        Assert.Empty(db.BagLots);
+        Assert.Single(db.Products);
+    }
+
+    [Fact]
+    public void Rechaza_comprar_por_piezas_un_producto_de_bultos()
+    {
+        NewStore().RegisterPurchase(Purchase(BagLine(productName: "Maiz quebrado")));
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            NewStore().RegisterPurchase(Purchase(UnitLine(productName: "Maiz quebrado"))));
+
+        Assert.Equal("El producto Maiz quebrado es de bultos.", error.Message);
+        using var db = database.CreateContext();
+        Assert.Empty(db.UnitLots);
+    }
+
+    [Fact]
     public void Una_compra_con_bultos_y_piezas_devuelve_un_registro_por_linea()
     {
         var records = NewStore().RegisterPurchase(Purchase(BagLine(), UnitLine()));
