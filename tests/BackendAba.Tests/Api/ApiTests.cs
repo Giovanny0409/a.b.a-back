@@ -162,13 +162,67 @@ public sealed class ApiTests : IDisposable
         {
             customer = "Juan",
             sellerId = "0409",
-            lines = new[] { new { productId = SeededProductId, unit = "piece", quantity = 1 } }
+            lines = new[] { new { productId = SeededProductId, unit = "kg", quantity = 1000 } }
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("No hay inventario suficiente para esta venta.", body.GetProperty("message").GetString());
         Assert.Equal(0, (await GetJson("/api/sales")).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Los_productos_mandan_su_tipo_en_camelCase()
+    {
+        await client.PostAsJsonAsync("/api/purchases", PurchaseBody("Comedero", "unit"));
+
+        var products = (await GetJson("/api/products")).EnumerateArray().ToList();
+
+        Assert.Equal("bag", products.Single(item => item.GetProperty("id").GetString() == SeededProductId).GetProperty("kind").GetString());
+        Assert.Equal("unit", products.Single(item => item.GetProperty("name").GetString() == "Comedero").GetProperty("kind").GetString());
+    }
+
+    [Fact]
+    public async Task Los_datos_de_compra_responden_en_camelCase_por_producto()
+    {
+        await client.PostAsJsonAsync("/api/purchases", PurchaseBody("Comedero", "unit"));
+
+        var defaults = (await GetJson("/api/products/purchase-defaults")).EnumerateArray().ToList();
+
+        var seeded = defaults.Single(item => item.GetProperty("productId").GetString() == SingleBagProductId);
+        Assert.Equal("bag", seeded.GetProperty("kind").GetString());
+        Assert.Equal("Forraje", seeded.GetProperty("category").GetString());
+        Assert.Equal(48.8m, seeded.GetProperty("markedKg").GetDecimal());
+        Assert.Equal(330m, seeded.GetProperty("salePriceBag").GetDecimal());
+        Assert.Equal(8.5m, seeded.GetProperty("salePriceKg").GetDecimal());
+        var feeder = defaults.Single(item => item.GetProperty("name").GetString() == "Comedero");
+        Assert.Equal("unit", feeder.GetProperty("kind").GetString());
+        Assert.Equal(400m, feeder.GetProperty("salePriceBag").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, feeder.GetProperty("markedKg").ValueKind);
+        Assert.Equal(JsonValueKind.Null, feeder.GetProperty("salePriceKg").ValueKind);
+    }
+
+    [Fact]
+    public async Task Cotizar_con_un_modo_que_no_corresponde_responde_400_con_mensaje()
+    {
+        var response = await client.GetAsync($"/api/sales/quote?productId={SeededProductId}&unit=piece&quantity=1");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Maiz quebrado se vende por bulto o por kilo.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task Comprar_un_producto_con_otro_tipo_responde_400_y_no_se_registra()
+    {
+        await client.PostAsJsonAsync("/api/purchases", PurchaseBody("Comedero", "unit"));
+
+        var response = await client.PostAsJsonAsync("/api/purchases", PurchaseBody("Comedero", "bag"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("El producto Comedero es de piezas.", body.GetProperty("message").GetString());
+        Assert.Equal(1, (await GetJson("/api/purchases")).GetArrayLength());
     }
 
     [Fact]

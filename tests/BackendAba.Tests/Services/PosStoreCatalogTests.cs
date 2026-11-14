@@ -32,6 +32,34 @@ public sealed class PosStoreCatalogTests : IDisposable
     }
 
     [Fact]
+    public void Los_datos_de_compra_salen_del_lote_mas_reciente_de_cada_producto()
+    {
+        NewStore().RegisterPurchase(Purchase(BagLine(markedKg: 40m, salePriceBag: 400m, salePriceKg: 11m)));
+        Thread.Sleep(5);
+        NewStore().RegisterPurchase(Purchase(BagLine(markedKg: 25m, salePriceBag: 350m, salePriceKg: 15m)));
+        NewStore().RegisterPurchase(Purchase(UnitLine(salePricePiece: 80m)));
+        Thread.Sleep(5);
+        NewStore().RegisterPurchase(Purchase(UnitLine(salePricePiece: 95m)));
+        NewStore().AddProduct(new CreateProductRequest("Sin compras", "General", 0));
+
+        var defaults = NewStore().GetPurchaseDefaults();
+
+        Assert.Equal(["Correa", "Maiz quebrado"], defaults.Select(item => item.Name));
+        var bag = defaults[1];
+        Assert.Equal(ProductKind.Bag, bag.Kind);
+        Assert.Equal("Grano", bag.Category);
+        Assert.Equal(25m, bag.MarkedKg);
+        Assert.Equal(350m, bag.SalePriceBag);
+        Assert.Equal(15m, bag.SalePriceKg);
+        var unit = defaults[0];
+        Assert.Equal(ProductKind.Unit, unit.Kind);
+        Assert.Equal("Accesorio", unit.Category);
+        Assert.Null(unit.MarkedKg);
+        Assert.Equal(95m, unit.SalePriceBag);
+        Assert.Null(unit.SalePriceKg);
+    }
+
+    [Fact]
     public void Marca_por_surtir_cuando_los_bultos_sellados_no_pasan_del_minimo()
     {
         var product = NewStore().AddProduct(new CreateProductRequest("Alimento engorda", "Balanceado", 2));
