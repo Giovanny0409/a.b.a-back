@@ -14,6 +14,12 @@ public sealed class ProductsController(PosStore store) : ControllerBase
         return Ok(store.GetProducts());
     }
 
+    [HttpGet("purchase-defaults")]
+    public ActionResult<IReadOnlyList<ProductPurchaseDefaults>> GetPurchaseDefaults()
+    {
+        return Ok(store.GetPurchaseDefaults());
+    }
+
     [HttpPost]
     public ActionResult<Product> Create(CreateProductRequest request)
     {

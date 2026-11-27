@@ -28,22 +28,27 @@ dotnet test
 Corre `tests/BackendAba.Tests` (xUnit, en `backend-aba.sln`) sin tocar `aba.db`:
 
 - `Services/`: `PosStore` contra SQLite en memoria con las migraciones reales: compras de bultos y piezas,
-  reutilización de producto y proveedor, inventario, cotización y venta por bulto, kilo y pieza, ventas rechazadas,
-  gastos, resumen, vendedores y siembra.
+  reutilización de producto y proveedor, el tipo del producto (`bag`/`unit`) y las compras o ventas que no le
+  corresponden, inventario, cotización y venta por bulto, kilo y pieza, ventas rechazadas, datos de la última compra,
+  gastos, resumen, vendedores, siembra y la migración `AddProductKind` sobre datos del esquema anterior.
 - `Api/`: la API completa con `WebApplicationFactory<Program>` sobre su propia base en memoria: rutas, códigos de
   respuesta y propiedades en camelCase que consume el front.
 
 ## Endpoints
 
 - `GET /api/dashboard/summary`
-- `GET /api/products`
-- `POST /api/products`
+- `GET /api/products` (cada producto con su `kind`: `bag` o `unit`)
+- `GET /api/products/purchase-defaults` (por producto con compras: tipo, categoría, kg por bulto y precios de venta
+  de su lote más reciente; para `unit`, `salePriceBag` es el precio de la pieza)
+- `POST /api/products` (el producto queda `bag`)
 - `GET /api/inventory`
 - `GET /api/inventory/lots`
 - `GET /api/purchases`
-- `POST /api/purchases` (una o mas lineas `bag`/`unit`; da de alta producto y/o proveedor si no existen)
+- `POST /api/purchases` (una o mas lineas `bag`/`unit`; da de alta producto y/o proveedor si no existen. La primera
+  compra fija el tipo del producto; una línea con otro tipo responde `400 { message }`)
 - `GET /api/sales`
-- `GET /api/sales/quote`
+- `GET /api/sales/quote` (`404` sin inventario; `400 { message }` si el modo no corresponde al tipo del producto,
+  igual que `POST /api/sales/batch`)
 - `POST /api/sales`
 - `POST /api/sales/batch`
 - `GET /api/expenses`
